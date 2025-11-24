@@ -1,5 +1,5 @@
 using LinearAlgebra, Random, DelimitedFiles, Plots, LaTeXStrings, GLM, DataFrames
-using Gurobi, JuMP, SparseMatricesCSR, SparseArrays, Statistics
+# using Gurobi, JuMP, SparseMatricesCSR, SparseArrays, Statistics
 using SparseMatricesCSR, SparseArrays, Statistics, Parsers, Plots, Measures
 # using SparseMatricesCSR, SparseArrays
 global const PROJPATH = pwd();
@@ -162,7 +162,7 @@ end
 
 
 
-n, data, out = process_data_plot(DATAPATH);
+n, data, out = process_data_plot(DATAPATH, algid, r_k_pair);
 
 figures = [];
 for i in eachindex(ri)
@@ -174,7 +174,7 @@ for i in eachindex(ri)
   if i in [4, 5, 6]
     bottom = true
   end
-  p = complexity_plot(2, rid, ki, n, data, left, bottom)
+  p = complexity_plot(1, rid, ki, n, data, left, bottom)
   push!(figures, p)
 end
 
@@ -218,13 +218,13 @@ klevel = [[1; 10; 100; 500] .// 10^4; [1;2;3;4;5;6;7;8;9] .// 10]
 ri = [13]
 ki = [1; 2; 3; 4; 5; 6; 7; 8; 9]
 
-klevel_sub = klevel[ki]
-rlevel_sub = rlevel[ri]
-expers = [(x, y) for x in rlevel_sub for y in klevel_sub]
+klevel_sub = klevel[ki];
+rlevel_sub = rlevel[ri];
+expers = [(x, y) for x in rlevel_sub for y in klevel_sub];
 
-r_k_pair = [(x, y) for x in ri for y in ki]
+r_k_pair = [(x, y) for x in ri for y in ki];
 
-n, data, out = process_data_plot(DATAPATH);
+n, data, out = process_data_plot(DATAPATH, algid, r_k_pair);
 
 function complexity_plot_r1(algid, ri, ki_list, n::Array, data::Dict, left::Bool=false, bottom::Bool=false)
   taur = rlevel[ri]

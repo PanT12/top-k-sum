@@ -155,160 +155,6 @@ function writeout_piv(D::Dict, n::Integer, repi::Integer, datapath::String, dist
 end
 
 
-# load the result and load the result
-# input: 
-#   - datapath
-#   - rep_lo: lower bound of nrep
-#   - rep_up: upper bound of nrep
-#   - distribution
-# function load_results(datapath::String, rep_lo::Integer, rep_hi::Integer)
-#   out = Dict()
-#   distributions = readdir(datapath)
-#   distributions = distributions[.!occursin.(".xlsx", distributions) .* .!occursin.(".DS_Store", distributions)]
-#   for di in eachindex(distributions)
-#     distribution = distributions[di]
-#     out[distribution] = Dict()
-#     println("============================")
-#     println("distribution = $(distribution)")
-#     expers = readdir(datapath * "/" * distribution)
-#     expers = expers[.!occursin.(".csv", expers) .* .!occursin.(".tex", expers) .* .!occursin.(".DS_Store", expers)]
-#     # ns = [parse(Int64, match(r"(\d+)",x).match) for x in expers]
-#     ns = [parse(Int64, x) for x in expers]
-#     exper_mask = ones(Bool, length(expers))
-#     for i in eachindex(expers)
-#       exper = expers[i]
-#       files = readdir(datapath * "/" * distribution * "/" * exper * "/")
-#       # files = files[.!occursin.(".DS_Store", files)]
-#       rep_mask = [x[1] for x in split.(files, ".csv")]
-#       rep_mask = [x[end] for x in split.(rep_mask, "_")]
-#       rep_mask = [(isnothing(x) ? false : (parse(Int64, x.match) >= rep_lo && parse(Int64, x.match) <= rep_hi)) for x in match.(r"(\d+)", rep_mask)]
-#       if sum(rep_mask) == 0
-#         exper_mask[i] = false
-#       end
-#     end
-
-#     for (exper,n) in zip(expers[exper_mask],ns[exper_mask])
-#       println("============================")
-#       println("exper = $exper")
-#       out[distribution][exper] = Dict()
-#       files = readdir(datapath * "/" * distribution * "/" * exper * "/")
-#       rep_mask = [x[1] for x in split.(files, ".csv")]
-#       rep_mask = [x[end] for x in split.(rep_mask, "_")]
-#       rep_mask = [(isnothing(x) ? true : (parse(Int64, x.match) >= rep_lo && parse(Int64, x.match) <= rep_hi)) for x in match.(r"(\d+)", rep_mask)]
-#       files = files[rep_mask]
-#       # active = files[occursin.("_active", files)]
-#       # bestfeas = files[occursin.("bestfeas", files)]
-#       case = files[occursin.("case", files)];
-#       nit_init = files[occursin.("_nit_init", files)];
-#       nit_p = files[occursin.("_nit_p", files)];
-#       nit_e = files[occursin.("_nit_e", files)];
-#       # nactivecon = files[occursin.("nactivecon", files)]
-#       obj = files[occursin.("obj", files)];
-#       # ord = files[occursin.("ord", files)]
-#       t_init = files[occursin.("_t_init", files)]
-#       t_sort = files[occursin.("t_sort", files)]
-#       t_run = files[occursin.("t_run", files)]
-#       t_primal = files[occursin.("t_primal", files)]
-#       t_psort = files[occursin.("t_psort", files)];
-#       t_total = files[occursin.("_t_total", files)];
-#       outnames = ["case", "nit_init", "nit_p", "nit_e", "obj", "t_total", "t_run", "t_primal", "t_init", "t_sort", "t_psort"];
-#       # outfiles = [active, bestfeas, case, infeas, k0, k1, tks, nit, nactivecon, obj, ord, t_init, t_run, t_primal, t_psort]
-#       outfiles = [case, nit_init, nit_p, nit_e, obj, t_total, t_run, t_primal, t_init, t_sort, t_psort];
-#       klevel = files[occursin.("klevel", files)];
-#       rlevel = files[occursin.("rlevel", files)];
-#       # maxn_grid = files[occursin.("maxn_grid", files)]
-#       # maxn_gurobi = files[occursin.("maxn_gurobi", files)]
-#       nrep = maximum([parse(Int64,x.match) for x in match.(r"\d+(?=.csv)",t_total)]) - minimum([parse(Int64,x.match) for x in match.(r"\d+(?=.csv)",t_total)]) + 1
-#       k_list = readdlm(datapath * "/" * distribution * "/" * exper * "/" * klevel[1])
-#       nk = length(k_list)
-#       r_list = readdlm(datapath * "/" * distribution * "/" * exper * "/" * rlevel[1])
-#       nr = length(r_list)
-#       dims = (nrep,nr,nk)
-#       # out[exper]["rlevel"] = vec([[r[1]//r[2] for r in eachcol(parse.(Int64,split(x, "//")))][1] for x in r_list])
-#       out[distribution][exper]["rlevel"] = vec(r_list)
-#       # out[distribution][exper]["klevel"] = vec([[r[1]//r[2] for r in eachcol(parse.(Int64,split(x, "//")))][1] for x in k_list])
-#       out[distribution][exper]["klevel"] = vec(k_list)
-#       algid=1
-#       out[distribution][exper][algid] = Dict()
-#       for (on,of) in zip(outnames,outfiles)
-#         println(on)
-#         if on == "t_sort" || on == "t_psort"
-#           continue          
-#         else
-#           x = [readdlm(datapath * "/" * distribution * "/" * exper * "/" * f) for f in of[occursin.("out_$(algid)_", of)]]
-#           out[distribution][exper][algid][on] = y = hvncat(dims, true, vcat(x...)...) # y[i,:,:]==x[i]
-#         end
-#         @simd for i in 1:nrep
-#           @assert(y[i,:,:]==x[i])
-#         end
-#       end
-#       x = [readdlm(datapath * "/" * distribution * "/" * exper * "/" * f) for f in t_sort];
-#       out[distribution][exper]["sort_time"] = vec(vcat(x...));
-#       x = [readdlm(datapath * "/" * distribution * "/" * exper * "/" * f) for f in t_psort];
-#       out[distribution][exper]["partial_sort_time"] = hvncat((nrep, length(k_list)), true, vcat(x...)...);
-#       println("-> $exper loaded")
-#     end
-#   end
-#   return out
-# end
-
-# function process_load_result(out::Dict, datapath::String)
-#   # datapath = datapath * "/" * distribution * "/"
-#   distributions = readdir(datapath)
-#   distributions = distributions[.!occursin.(".xlsx", distributions) .* .!occursin.(".DS_Store", distributions)]
-#   for di in eachindex(distributions)
-#     distribution = distributions[di]
-#     expers = readdir(datapath * "/" * distribution)
-#     expers = expers[.!occursin.(".csv", expers) .* .!occursin.(".tex", expers) .* .!occursin.(".DS_Store", expers)]
-#     for i in eachindex(expers)
-#       n = expers[i]
-
-#       result = out[distribution][n];
-#       println(datapath * "/" * distribution * "/" * n * "/process/")
-#       mkpath(datapath * "/" * distribution * "/" * n * "/process/");
-#       mean_t_psort = mapslices(mean, result["partial_sort_time"], dims=1)
-#       writedlm(datapath * "/" * distribution * "/" * n * "/process/partial_sort_time_mean.csv", mean_t_psort)
-#       mean_t_sort = mapslices(mean, result["sort_time"], dims=1)
-#       writedlm(datapath * "/" * distribution * "/" * n * "/process/sort_time_mean.csv", mean_t_sort)
-#       algo=1
-#       for key in keys(result[algo])
-#         mean_key = mapslices(mean, result[algo][key], dims=1)
-#         mean_key = dropdims(mean_key, dims=1)
-#         writedlm(datapath * "/" * distribution * "/" * n * "/process/$(algo)_$(key)_mean.csv", mean_key)
-#           if key == "t_total" || key == "t_init"
-#           mean_key = mapslices(mean, result[algo][key], dims=1)
-#           mean_key = dropdims(mean_key, dims=1)
-#           writedlm(datapath * "/" * distribution * "/" * n * "/process/$(algo)_$(key)_mean.csv", mean_key)
-#           median_key = mapslices(median, result[algo][key], dims=1)
-#           median_key = dropdims(median_key, dims=1)
-#           writedlm(datapath * "/" * distribution * "/" * n * "/process/$(algo)_$(key)_median.csv", median_key)
-
-#           std_t_total = mapslices(std, result[algo][key], dims=1) 
-#           std_t_total = dropdims(std_t_total, dims=1)
-#           writedlm(datapath * "/" * distribution * "/" * n * "/process/$(algo)_$(key)_std.csv", std_t_total)
-#         end
-#       end
-
-#       # for key in keys(result[1])
-#       #   if key == "t_total" || key == "obj"
-#       #     a = round.(readdlm(datapath * "/" * distribution * "/" * n * "/process/1_$(key)_mean.csv"), digits = 3)
-#       #     b = round.(readdlm(datapath * "/" * distribution * "/" * n * "/process/2_$(key)_mean.csv"), digits = 3)
-#       #     c = [string(a[i,j], "(", b[i,j], ")") for i in 1:size(a, 1), j in 1:size(a, 2)]
-#       #     writedlm(datapath * "/" * distribution * "/" * n * "/process/$(key)_compare.csv", c)
-#       #   end
-#       # end
-#       # p1 = heatmap(algo_CIPS_vs_ESGS, title="CIPS v.s. ESGS$(n)$(distribution)", xlabel="k level", ylabel="r level", colorbar=true)
-#       # p2 = heatmap(algo_BIPS_vs_ESGS, title="BIPS v.s. ESGS$(n)$(distribution)", xlabel="k level", ylabel="r level", colorbar=true)
-#       # p3 = heatmap(algo_CIPS_vs_BIPS, title="CIPS v.s. BIPS$(n)$(distribution)", xlabel="k level", ylabel="r level", colorbar=true)
-#       # savefig(p1, datapath * "/" * distribution * "/" * n * "/process/CIPS v.s. ESGS.pdf")  # 将 "heatmap.png" 替换为你想要的文件名
-#       # savefig(p2, datapath * "/" * distribution * "/" * n * "/process/BIPS v.s. ESGS.pdf")
-#       # savefig(p3, datapath * "/" * distribution * "/" * n * "/process/CIPS v.s. BIPS.pdf")
-#     end
-#   end
-
-# end
-
-
 
 using LinearAlgebra, Random, DelimitedFiles, Plots, LaTeXStrings
 using Gurobi, JuMP, SparseMatricesCSR, SparseArrays, Statistics
@@ -316,13 +162,14 @@ using SparseMatricesCSR, SparseArrays, Statistics
 # using SparseMatricesCSR, SparseArrays
 global const PROJPATH = pwd();
 include(PROJPATH * "/experiment/projection.jl")
+include(PROJPATH * "/experiment/data_process.jl")
 global const DATAPATH = PROJPATH * "/complexity"
 # global const DATAPATH = PROJPATH * "/complexity_tau_r_near1"
 # global const DATAPATH = PROJPATH * "/complexity_tau_r=1"
 
 
 nlevel = 10 .^(collect(3:7));
-# nlevel = collect(1:10).*10^5
+nlevel = [10^3; 10^7];
 rlevel = [[0;1;2;3;4;5;6;7;8;9] .//10; [99//100, 999//1000]; [100; 101; 110; 120; 150; 200] .// 100];
 klevel = [[1; 10; 100; 500] .// 10^4; [1;2;3;4;5;6;7;8;9] .// 10];
 ri = [2; 6; 10; 13; 15; 17];

@@ -1,3 +1,5 @@
+using Gurobi, JuMP
+
 function default_proj_options()
   options = Dict()
   options[:maxtime] = 3000 # seconds
@@ -10,7 +12,7 @@ function default_proj_options()
   return options
 end
 
-function project_topksum_guro_experiment!(
+function project_topksum_guro!(
   xbarsort::Vector, sig::Vector, x0::Vector, r::Real, k::Integer, active::Bool,
   options::Dict=default_proj_options()
 )

@@ -886,7 +886,7 @@ function project_topksum_EIPS_experiment!(
   ## Test active
   ## initialization
   len = length(a);
-  tol = 1e-8
+  tol::Tfr = Tfr(1e-8)
   
   if k == 1
     flag = -2
@@ -898,7 +898,7 @@ function project_topksum_EIPS_experiment!(
     end
   end
   if k == len
-    time_init = @elapsed term = (r - max(r, sum(a)))/n
+    time_init = @elapsed term = (r - max(r, sum(a)))/len
     flag = -2
     time_exact = @elapsed xstar .= a .+ term
     if hist
@@ -942,7 +942,7 @@ function project_topksum_EIPS_experiment!(
       g_subseq = view(a, 1:len)
       f_subseq = view(a, a .>= uL.val)
     elseif flag == 3
-      f_subseq = g_subseq = view(a, a .<= uR.val)
+      f_subseq = g_subseq = view(a, a .< uR.val)
       g_subseq = view(g_subseq, uR.g-tol .<= g_subseq)
     end
   end

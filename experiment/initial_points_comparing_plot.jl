@@ -150,8 +150,7 @@ function initial_point_comparing_plot(pair, data, left::Bool=false, right::Bool=
   rid, kid = pair
   taur, tauk = rlevel[rid], klevel[kid]
 
-  title!("Flag = $(flag): \$ \\tau_r = $(numerator(taur)) / $(denominator(taur)), 
-    \\tau_k = $(numerator(tauk)) / $(denominator(tauk)) \$", fontfamily="Times New Roman"
+  title!("Flag = $(flag): \$\\tau_r\$ = $(numerator(taur)) / $(denominator(taur)), \$\\tau_k\$ = $(numerator(tauk)) / $(denominator(tauk))", fontfamily="Times New Roman"
   )
   plot!(framestyle=:box)
   plot!(grid=true)

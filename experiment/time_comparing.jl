@@ -457,9 +457,10 @@ using SparseMatricesCSR, SparseArrays, Statistics
 # using SparseMatricesCSR, SparseArrays
 global const PROJPATH = pwd();
 include(PROJPATH * "/experiment/projection.jl")
+include(PROJPATH * "/experiment/data_process.jl")
 global const DATAPATH = PROJPATH * "/time_compare"
 
-nlevel = 10 .^(collect(1:7));
+nlevel = 10 .^(collect(1:5));
 # nlevel = [10^3]
 rlevel = [[0;1;2;3;4;5;6;7;8;9] .//10; [99//100, 999//1000]; [100; 101; 110; 120; 150; 200] .// 100];
 klevel = [[1; 10; 100; 500] .// 10^4; [1;2;3;4;5;6;7;8;9] .// 10];
@@ -478,8 +479,8 @@ for ni in eachindex(nlevel)
   println("===================")
   println("   n=$n  ")
   println("===================")
-  # time_test(n, repeat, rlevel, klevel, DATAPATH, distribution, 1000_000, 100_000, expers)
-  time_test(n, repeat, rlevel, klevel, DATAPATH, distribution, 1, 1, expers)
+  time_test(n, repeat, rlevel, klevel, DATAPATH, distribution, 1_000_000, 1_000_000, expers)
+  # time_test(n, repeat, rlevel, klevel, DATAPATH, distribution, 1, 1, expers)
 end
 
 out = load_results(DATAPATH, 1, 100, 1:5, 10^6, 10^7)
