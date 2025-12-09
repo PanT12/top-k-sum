@@ -165,63 +165,6 @@ function project_topksum_g_searching(
 
 end
 
-function project_topksum_g_searching1(
-    b::AbstractVector{Tfr}, u::Tfr, H::Int
-) where {Tfr<:Union{AbstractFloat,Rational}}
-
-    if H === 0
-        return maximum(b), 1
-    end
-    #  initialization
-    solved::Bool = false;
-    blength = length(b);
-    v = similar(b);
-    #  ṽ = @view v
-    
-    v[1:(H+1)] .= b[1:(H+1)]
-    vlength = H+1
-    ρ = sum(v[1:(H+1)]) - H*u
-
-    for i = (H+2):blength
-        if b[i] > ρ
-            @inbounds v[vlength += 1] = b[i]
-            ρ += (b[i] - ρ) / (vlength - H)
-        end
-    end
-
-    # println(ρ)
-
-    while true
-        vlengthold = vlength
-        vlength = 0
-        for i = 1:vlengthold
-            if v[i] > ρ
-                @inbounds v[vlength += 1] = v[i]
-            else
-                # if vlength == 2
-                #     ρ = minimum(v);
-                #     vlength = 1;
-                #     break
-                # end
-                ρ += (ρ - v[i]) / (vlengthold - i + vlength - H)
-            end
-            # println("rho is $(ρ) and vlength is $(vlength).")
-        end
-        # stopping
-        if vlength === vlengthold
-            solved = true
-            break
-        end
-    end
- 
-    if solved
-        return (ρ, vlength)
-    end
-
-
-end
-
-
 #=================================================
 Initialization step
 input:
@@ -244,7 +187,7 @@ function initialization!(
   
   tol::Tfr = 1e-8 # stopping criteria
   l_fold = unew = r/k;
-  uold::Tfr = maximum(a)
+  max_a = uold = maximum(a)
   Ite_init = 1;
   flag = -2;
   sum_a_r1_old::Tfr = 0.0
@@ -274,7 +217,7 @@ function initialization!(
 
     if m > k
       if hist
-        println("Flag is -2. Top-k-sum is larger than r.")
+        println("Top-k-sum is larger than r.")
       end
       break
     end
@@ -292,7 +235,7 @@ function initialization!(
     end
   end
   u = point(uold, m_old, sum_a_r1_old, l_fold, Inf)
-  return Ite_init, u, unew, flag
+  return Ite_init, u, unew, flag, max_a
 end
 
 
@@ -308,7 +251,7 @@ input:
   - unew: u^{i+1} (< a_k)
   - uold: u^i (>= a_k)
   - flag: the value of flag obtained in the initialization step
-  - not_select: not select initial points based on the flag
+  - coninit: select initial points consistently
   - hist: whether print some details
 output:
   - flag: -1, 1, 2, 3, 10
@@ -319,37 +262,15 @@ output:
   - uR
 =================================================#
 function select_initial_points(
-  a::AbstractVector{Tfr}, r::Tfr, k::Ti, Ite_init::Ti, unew::Tfr,
+  a::AbstractVector{Tfr}, r::Tfr, k::Ti, max_a, Ite_init::Ti, unew::Tfr,
   uold::point, flag::Ti,
-  not_select::Bool=false, hist::Bool=false, 
+  coninit::Bool=false, hist::Bool=false, 
 )where {Tfr<:Union{AbstractFloat,Rational}, Ti<:Integer}
 
   vlengthL = 0
   diffL = Inf
   tol = 1e-10
   uL, uR = point(-Inf, 0, 0.0, 0.0, 0.0), point(Inf, 0, 0.0, 0.0, 0.0)
-
-  if not_select
-    max_a = maximum(a)
-    l_fold = r/k;
-    l_gold, vlength = project_topksum_g_searching(a, l_fold, max_a + 1e-8, k, true, hist)
-    slope = -k/(vlength-k);
-    if l_fold > l_gold
-      uR = point(max_a, 0, 0.0, l_fold, l_gold)
-    else
-      uL = point(max_a, 0, 0.0, l_fold, l_gold)
-      vlengthL = vlength
-      diffL = l_gold-l_fold;
-    end
-    uC = (l_fold - l_gold)/slope + max_a;
-    if hist
-        println("-----------------Pivot step begins-----------------")
-        println("Iteration 0: g is $(l_gold), f is $(l_fold) with difference f - g is $(l_fold - l_gold). Current u is $(max_a)")
-        println("-----------------------------------------------")
-    end
-    flag = 10;
-    return flag, diffL, vlengthL, uC, uL, uR
-  end
 
   if flag == -1
     ak = minimum(a[a.>=unew])
@@ -361,7 +282,28 @@ function select_initial_points(
       uL.val = Fr_ak; uR.val = ak # uL.val denotes l*, uR.val denotes u*
       return flag, diffL, vlengthL, Inf, uL, uR
     end
-    flag = 3;
+  end
+
+  if coninit
+    l_fold = r/k;
+    num_f, sum_f = num_and_sum(a, l_fold)
+    compare_result = - (sum_f - num_f * l_fold) + k * (max_a - l_fold)
+    if compare_result < 0
+      uL.val = l_fold; # uL.val denotes l*, uR.val denotes u*
+      flag = -1;
+      return flag, diffL, vlengthL, Inf, uL, uR
+    end
+    l_gold, vlength = project_topksum_g_searching(a, l_fold, max_a + 1e-8, k, true, hist) 
+    uR = point(max_a + 1e-8, 0, 0.0, l_fold, l_gold)
+    slope = -k/(vlength-k);
+    uC = (uR.f - uR.g)/slope + uR.val
+    if hist
+        println("-----------------Pivot step begins-----------------")
+        println("Iteration 0: g is $(l_gold), f is $(l_fold) with difference f - g is $(l_fold - l_gold). Current u is $(max_a)")
+        println("-----------------------------------------------")
+    end
+    flag = 10;
+    return flag, diffL, vlengthL, uC, uL, uR
   end
 
 
@@ -375,7 +317,7 @@ function select_initial_points(
     end
     flag = 1;
     l_gold, vlength = project_topksum_g_searching(a, uold.f, uold.val + 1e-8, k, true, hist) 
-    uR = point(uold.val, uold.m, uold.s, uold.f, l_gold)
+    uR = point(uold.val + 1e-8, uold.m, uold.s, uold.f, l_gold)
     slope = -k/(vlength-k);
     uC = (uR.f - uR.g)/slope + uR.val
   else
@@ -421,7 +363,7 @@ input:
   - g_subseq: a_g: the filtered sequence used to calculate G_r(u)
   - diffL: G_r(uL) - F_r(uL) (>0) if uL(= uold) exists in the last step
   - vlengthL: the number of elements in I(G_r(uL), uL) if uL(= uold) exists in the last step
-  - not_select: not select initial points based on the flag
+  - coninit: select initial points consistently
   - debug: check the calculation of G_r(u)
   - hist: whether print some details
 output:
@@ -431,11 +373,175 @@ output:
   - g_subseq: the filtered sequence used to calculate G_r(u)
   - Ite: the number of iteration in the pivot step
 =================================================#
+# function pivot0(
+#   a::AbstractVector{Tfr}, r::Tfr, k::Ti, lb_in_init::Tfr,
+#   uL::point, uR::point, uC::Tfr,
+#   f_subseq::AbstractVector{Tfr}, g_subseq::AbstractVector{Tfr},
+#   diffL::Tfr, vlengthL::Ti, coninit::Bool, 
+#   debug::Bool=false, hist::Bool=false
+# )where {Tfr<:Union{AbstractFloat,Rational}, Ti<:Integer}
+
+#   tol = 1e-8
+#   m=0;
+#   Ite = 1;
+#   solved = false;
+#   sum_a_r1 = +Inf
+#   sum_r1 = 0; 
+#   while Ite<=100
+#     sum_r1, sum_a_r1 = num_and_sum(f_subseq, uC)
+#     m = sum_r1 + uR.m # calculate I(a, unew)
+#     if m > k || (!coninit && uC <= lb_in_init)  # useless point
+#       if hist
+#         println("Skip $(uC) and take uC=$((uC + uR.val) / 2).")
+#       end
+#       uC = (uC + uR.val) / 2
+#       Ite+=1
+#       continue
+#     end
+#     # f searching 
+#     sum_larger_u = sum_a_r1 + uR.s;
+#     uCf = (r - sum_larger_u + m * uC)/k
+#     # g searching
+#     uCg, vlength = project_topksum_g_searching(collect(g_subseq), uCf, uC, k-m, false, hist)
+#     if debug
+#       error = (k-sum(a.>=uC))*(uC-uCg) - sum(max.(a[a.<uC].-uCg, 0))
+#       if abs(error) > 1e-5
+#         @warn("debuging. error is $(error).")
+#       end
+#     end
+#     if hist
+#       println("Iteration $(Ite): m is $(m), g is $(uCg), f is $(uCf) with difference f - g is $(uCf - uCg). Current u is $(uC), vlength is $(vlength)")
+#     end
+
+#     diff = uCg - uCf;
+#     if abs(diff) < tol
+#       uL = point(uC, m, sum_larger_u, uCf, uCg)
+#       diffL = diff;
+#       solved = true;
+#       break
+#     end
+#     # filter g_subseq or f_subseq
+#     if diff < 0
+#       g_subseq = view(g_subseq, uCg-tol .<= g_subseq .< uC)
+#       f_subseq = view(f_subseq, f_subseq .< uC)
+#     else
+#       # left hand side
+#       f_subseq = view(f_subseq, f_subseq .>= uC)
+#       vlengthL = vlength
+#       diffL = diff;
+#     end
+
+#     # the case updating uC
+#     if hist
+#       println("uR is $(uR) and uL is $(uL)")
+#     end
+#     if uR.val == +Inf
+#       if diff < 0
+#         uR = point(uC, m, sum_larger_u, uCf, uCg)
+#       else
+#         uLB = deepcopy(uL)
+#         uL = point(uC, m, sum_larger_u, uCf, uCg)
+#       end
+#     elseif uL.val == -Inf
+#       if diff > 0
+#         uL = point(uC, m, sum_larger_u, uCf, uCg)
+#       else
+#         uRB = deepcopy(uR)
+#         uR = point(uC, m, sum_larger_u, uCf, uCg)
+#       end
+#     else
+#       if hist
+#         println("m - m_uL is $(m - uL.m). m - m_uR is $(m - uR.m).")
+#       end
+
+#       uCold = uC
+#       if m == uL.m
+#         if diff <= 0
+#           break
+#         else
+#           uL = point(uC, m, sum_larger_u, uCf, uCg)
+#           uC = minimum(@views f_subseq[f_subseq .> uC])
+#           uCf = uCf + m/k * (uC - uCold)
+#           if hist
+#             println("jump to a larger point $(uC) and ucf is $(uCf).")
+#           end
+#           uCg, vlength = project_topksum_g_searching(collect(g_subseq), uCf, uC, k-m, false, hist)
+#           if debug
+#             error = (k-sum(a.>=uC))*(uC-uC) - sum(max.(a[a.<uC].-uC, 0))
+#             if abs(error) > 1e-5
+#               @warn("debuging. error is $(error).")
+#             end
+#           end
+#           diff = uCg - uCf
+#           if diff <= 0
+#             g_subseq = view(g_subseq, uCg-tol .<= g_subseq .< uC)
+#             break
+#           else
+#             uL = point(uC, m, sum_larger_u, uCf, uCg)
+#           end
+#         end
+#       elseif m == uR.m
+#         if diff >= 0
+#           uL = point(uC, m, sum_larger_u, uCf, uCg)
+#           vlengthL = vlength;
+#           break
+#         else
+#           uC = maximum(@views f_subseq[f_subseq .< uC])
+#           if hist
+#             println("jump to a smaller point $(uC).")
+#           end
+#           uCf = uCf + m/k * (uC - uCold)
+#           uCg, vlength = project_topksum_g_searching(collect(g_subseq), uCf, uC, k-m-1, false, hist)
+#           if debug
+#             error = (k-sum(a.>uC))*(uC-uC) - sum(max.(a[a.<=uC].-uC, 0))
+#             if abs(error) > 1e-5
+#               @warn("debuging. error is $(error).")
+#             end
+#           end
+#           diff = uCg - uCf
+#           if diff >= 0
+#             uL = point(uC, m, sum_larger_u, uCf, uCg) # note: take the right-derivative
+#             vlengthL = vlength + 1; diffL = diff; # note: take the right-derivative
+#             break
+#           else
+#             uR = point(uC, m+1, sum_larger_u + uC, uCf, uCg)
+#             f_subseq = view(f_subseq, f_subseq .< uC)
+#           end
+#         end
+#       else
+#         if diff < 0
+#           uR = point(uC, m, sum_larger_u, uCf, uCg)
+#         else
+#           uL = point(uC, m, sum_larger_u, uCf, uCg)
+#         end
+#       end
+#     end
+
+#     if hist
+#       println("-----------------------------------------------")
+#     end
+
+#     # generate unew
+#     Ite += 1;
+#     if uR.val == +Inf
+#       uC = generate_newpoint(uLB, uL)
+#     elseif uL.val == -Inf
+#       uC = generate_newpoint(uRB, uR)
+#     else
+#       uC = generate_newpoint(uR, uL)
+#     end 
+
+#   end
+
+#   return uL, vlengthL, diffL, g_subseq, Ite
+
+# end
+
 function pivot(
   a::AbstractVector{Tfr}, r::Tfr, k::Ti, lb_in_init::Tfr,
   uL::point, uR::point, uC::Tfr,
   f_subseq::AbstractVector{Tfr}, g_subseq::AbstractVector{Tfr},
-  diffL::Tfr, vlengthL::Ti, not_select::Bool, 
+  diffL::Tfr, vlengthL::Ti, coninit::Bool, 
   debug::Bool=false, hist::Bool=false
 )where {Tfr<:Union{AbstractFloat,Rational}, Ti<:Integer}
 
@@ -445,10 +551,11 @@ function pivot(
   solved = false;
   sum_a_r1 = +Inf
   sum_r1 = 0; 
+
   while Ite<=100
     sum_r1, sum_a_r1 = num_and_sum(f_subseq, uC)
     m = sum_r1 + uR.m # calculate I(a, unew)
-    if m > k || (!not_select && uC <= lb_in_init)  # useless point
+    if m > k || (uC <= lb_in_init)  # useless point
       if hist
         println("Skip $(uC) and take uC=$((uC + uR.val) / 2).")
       end
@@ -468,7 +575,7 @@ function pivot(
       end
     end
     if hist
-      println("Iteration $(Ite): m is $(m), g is $(uCg), f is $(uCf) with difference f - g is $(uCf - uCg). Current u is $(uC), vlength is $(vlength)")
+      println("Iteration $(Ite): m is $(m), g is $(uCg), f is $(uCf) with difference f - g is $(uCf - uCg). current u is $(uC).")
     end
 
     diff = uCg - uCf;
@@ -489,10 +596,65 @@ function pivot(
       diffL = diff;
     end
 
-    # the case updating uC
     if hist
-      println("uR is $(uR) and uL is $(uL)")
+      println("uR is $(uR) and uL is $(uL). m - m_uL is $(m - uL.m). m - m_uR is $(m - uR.m).")
     end
+
+    uCold = uC
+    if m == uL.m
+      if diff <= 0
+        break
+      else
+        uL = point(uC, m, sum_larger_u, uCf, uCg)
+        uC = minimum(@views f_subseq[f_subseq .> uC])
+        uCf = uCf + m/k * (uC - uCold)
+        if hist
+          println("jump to a larger point $(uC) and ucf is $(uCf).")
+        end
+        uCg, vlength = project_topksum_g_searching(collect(g_subseq), uCf, uC, k-m, false, hist)
+        if debug
+          error = (k-sum(a.>=uC))*(uC-uC) - sum(max.(a[a.<uC].-uC, 0))
+          if abs(error) > 1e-5
+            @warn("debuging. error is $(error).")
+          end
+        end
+        diff = uCg - uCf
+        if diff <= 0
+          g_subseq = view(g_subseq, uCg-tol .<= g_subseq .< uC)
+          break
+        end
+      end
+    elseif m == uR.m
+      if diff >= 0
+        uL = point(uC, m, sum_larger_u, uCf, uCg)
+        vlengthL = vlength;
+        break
+      else
+        uC = maximum(@views f_subseq[f_subseq .< uC])
+        if hist
+          println("jump to a smaller point $(uC).")
+        end
+        uCf = uCf + m/k * (uC - uCold)
+        cur_uC_num = sum(uC .== f_subseq)
+        uCg, vlength = project_topksum_g_searching(collect(g_subseq), uCf, uC, k-m-cur_uC_num, false, hist)
+        if debug
+          error = (k-sum(a.>uC))*(uC-uC) - sum(max.(a[a.<=uC].-uC, 0))
+          if abs(error) > 1e-5
+            @warn("debuging. error is $(error).")
+          end
+        end
+        diff = uCg - uCf
+        if diff >= 0
+          uL = point(uC, m, sum_larger_u, uCf, uCg) # note: take the right-derivative
+          vlengthL = vlength + cur_uC_num; diffL = diff; # note: take the right-derivative
+          break
+        else
+          m += cur_uC_num; sum_larger_u += cur_uC_num * uC; 
+          f_subseq = view(f_subseq, f_subseq .< uC)
+        end
+      end
+    end
+
     if uR.val == +Inf
       if diff < 0
         uR = point(uC, m, sum_larger_u, uCf, uCg)
@@ -508,70 +670,10 @@ function pivot(
         uR = point(uC, m, sum_larger_u, uCf, uCg)
       end
     else
-      if hist
-        println("m - m_uL is $(m - uL.m). m - m_uR is $(m - uR.m).")
-      end
-
-      uCold = uC
-      if m == uL.m
-        if diff <= 0
-          break
-        else
-          uL = point(uC, m, sum_larger_u, uCf, uCg)
-          uC = minimum(@views f_subseq[f_subseq .> uC])
-          uCf = uCf + m/k * (uC - uCold)
-          if hist
-            println("jump to a larger point $(uC) and ucf is $(uCf).")
-          end
-          uCg, vlength = project_topksum_g_searching(collect(g_subseq), uCf, uC, k-m, false, hist)
-          if debug
-            error = (k-sum(a.>=uC))*(uC-uC) - sum(max.(a[a.<uC].-uC, 0))
-            if abs(error) > 1e-5
-              @warn("debuging. error is $(error).")
-            end
-          end
-          diff = uCg - uCf
-          if diff <= 0
-            g_subseq = view(g_subseq, uCg-tol .<= g_subseq .< uC)
-            break
-          else
-            uL = point(uC, m, sum_larger_u, uCf, uCg)
-          end
-        end
-      elseif m == uR.m
-        if diff >= 0
-          uL = point(uC, m, sum_larger_u, uCf, uCg)
-          vlengthL = vlength;
-          break
-        else
-          uC = maximum(@views f_subseq[f_subseq .< uC])
-          if hist
-            println("jump to a smaller point $(uC).")
-          end
-          uCf = uCf + m/k * (uC - uCold)
-          uCg, vlength = project_topksum_g_searching(collect(g_subseq), uCf, uC, k-m-1, false, hist)
-          if debug
-            error = (k-sum(a.>uC))*(uC-uC) - sum(max.(a[a.<=uC].-uC, 0))
-            if abs(error) > 1e-5
-              @warn("debuging. error is $(error).")
-            end
-          end
-          diff = uCg - uCf
-          if diff >= 0
-            uL = point(uC, m, sum_larger_u, uCf, uCg) # note: take the right-derivative
-            vlengthL = vlength + 1; diffL = diff; # note: take the right-derivative
-            break
-          else
-            uR = point(uC, m+1, sum_larger_u + uC, uCf, uCg)
-            f_subseq = view(f_subseq, f_subseq .< uC)
-          end
-        end
+      if diff < 0
+        uR = point(uC, m, sum_larger_u, uCf, uCg)
       else
-        if diff < 0
-          uR = point(uC, m, sum_larger_u, uCf, uCg)
-        else
-          uL = point(uC, m, sum_larger_u, uCf, uCg)
-        end
+        uL = point(uC, m, sum_larger_u, uCf, uCg)
       end
     end
 
@@ -656,17 +758,15 @@ function exact(
     # end
   end
 
-
   # result
   if m == k
     uL.val = minimum(@views a[a.>=uL.val])
     uL.m, sum_a_r1 = num_and_sum(a, uL.val)
     uL.f = (r - sum_a_r1 + uL.m * uL.val)/k
     if hist
-      println("fake point! It should be $(uL.val), $(uL.f).")
+      println("Fake point! It should be $(uL.val), $(uL.f).")
     end
   end
   return Ite, uL
-
 end
 

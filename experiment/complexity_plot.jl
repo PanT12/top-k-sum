@@ -3,11 +3,9 @@ using LinearAlgebra, Random, DelimitedFiles, Plots, LaTeXStrings, GLM, DataFrame
 using SparseMatricesCSR, SparseArrays, Statistics, Parsers, Plots, Measures
 # using SparseMatricesCSR, SparseArrays
 global const PROJPATH = pwd();
-# include(PROJPATH * "/experiment/projection.jl")
-# include(PROJPATH * "/experiment/helper_experiment.jl")
 include(PROJPATH * "/src/base.jl")
+include(PROJPATH * "/experiment/data_process.jl")
 global const DATAPATH = PROJPATH * "/complexity"
-# global const DATAPATH = PROJPATH * "/complexity_tau_r_near1"
 # global const DATAPATH = PROJPATH * "/complexity_tau_r=1"
 
 
@@ -15,8 +13,6 @@ rlevel = [[0;1;2;3;4;5;6;7;8;9] .//10; [99//100, 999//1000]; [100; 101; 110; 120
 klevel = [[1; 10; 100; 500] .// 10^4; [1;2;3;4;5;6;7;8;9] .// 10];
 ri = [2; 6; 10; 13; 15; 17];
 ki = [1; 6; 8; 12];
-# ri = [13]
-# ki = [1; 2; 3; 4; 6; 8; 12]
 klevel_sub = klevel[ki];
 rlevel_sub = rlevel[ri];
 expers = [(x, y) for x in rlevel_sub for y in klevel_sub];
@@ -25,86 +21,6 @@ r_k_pair = [(x, y) for x in ri for y in ki];
 
 alg_name = ["with init", "without init"];
 algid = [1];
-
-# function process_data_plot(datapath::String)
-#   # datapath = DATAPATH;
-#   root_dir = datapath * "/Uniform"
-#   files = readdir(root_dir);
-#   files = files[.!occursin.(".DS_Store", files)];
-#   n = sort([Parsers.parse(Int, sample_size) for sample_size in files])
-#   # n = n[2:end]
-#   files = [string(size) for size in n]
-#   out = Dict()
-#   sort_time = [];
-#   psort_time = [];
-
-#   file_name = ["total_mean", "total_std", "init_mean", "run_mean", "primal_mean"]
-#   file_name2 = ["nit_total_mean", "case_mean"]
-
-#   for folder in files
-#     # if folder == "1000"
-#     #   continue
-#     # end
-#     out[folder] = Dict()
-#     process_path = joinpath(root_dir, folder, "process");
-#     sort_time_path = joinpath(process_path, "sort_time_mean.csv")
-#     sort_val = readdlm(sort_time_path)
-#     push!(sort_time, sort_val)
-#     psort_time_path = joinpath(process_path, "partial_sort_time_mean.csv")
-#     psort_val = readdlm(psort_time_path)
-#     push!(psort_time, psort_val)  
-    
-#     for id in algid
-#       out[folder][id] = Dict()
-#       for data in file_name
-#         file = joinpath(process_path, string(id) * "_t_" * data * ".csv");
-#         out[folder][id][data] = readdlm(file)
-#       end
-#       for data in file_name2
-#         file = joinpath(process_path, string(id) * "_" * data * ".csv");
-#         out[folder][id][data] = readdlm(file)
-#       end
-
-#     end
-#   end
-  
-#   data = Dict()
-#   data["sort_time"] = sort_time
-#   data["psort_time"] = psort_time
-
-#   for id in algid
-#     data[id] = Dict()
-#     for d in [file_name; file_name2]
-#       data[id][d] = Dict()
-#       for pair in r_k_pair
-#         rid, kid = pair
-#         val = []
-#         for folder in files
-#           # if folder == "100" || folder == "1000"
-#           #   continue
-#           # end
-#           push!(val, out[folder][id][d][rid, kid])
-#           data[id][d][pair] = val
-#         end
-#       end
-#     end
-#   end
-
-#   return n, data, out
-# end
-
-# my_color = Dict(
-#   "blackblue" => RGB(55/255, 103/255, 149/255), 
-#   "midblue" => RGB(082/255, 143/255, 173/255),
-#   "lightblue" => RGB(114/255, 188/255, 213/255),
-#   "yellow" => RGB(255/255, 208/255, 111/255),
-#   "red" => RGB(231/255, 098/255, 084/255),
-#   "orange"=> RGB(239/255, 138/255, 071/255)
-# );
-# my_color_list = [RGB(55/255, 103/255, 149/255), RGB(114/255, 188/255, 213/255), RGB(255/255, 208/255, 111/255), RGB(231/255, 098/255, 084/255)];
-
-# shape = [:circle, :diamond, :utriangle, :square, :star, :dtriangle, :pentagon, :cross, :xcross]
-
 
 # estimate the slope: if the slope ≈ 1: linear behavior
 function estimate_slope(data::Dict, n::Array, ki::Int, ri::Int, algid)
@@ -139,17 +55,17 @@ function complexity_plot(algid, ri, ki_list, n::Array, data::Dict, left::Bool=fa
   end
 
   if left
-    ylabel!("time (sec)", fontfamily="Times New Roman")
+    ylabel!("Time (sec)", fontfamily="Times New Roman", yguidefontsize=15)
   end
   if bottom
-    xlabel!("n", fontfamily="Times New Roman")
+    xlabel!("n", fontfamily="Times New Roman", xguidefontsize=15)
   end
 
   title!("Experiment: \$ \\tau_r = $(numerator(taur)) / $(denominator(taur)) \$", fontfamily="Times New Roman")
 
   xticks = [10^4, 10^5, 10^6, 10^7]
   yticks = [10^(-4), 10^(-3), 10^(-2), 10^(-1), 10^(0)]
-  plot!(xticks=xticks, yticks=yticks, ytickfontsize=10, xtickfontsize=10)
+  plot!(xticks=xticks, yticks=yticks, ytickfontsize=12, xtickfontsize=12)
 
   plot!(framestyle=:box)
   plot!(grid=true)
@@ -194,7 +110,7 @@ p0=plot([0, 0, 0, 0]',grid=false, showaxis=false,
 lay = @layout([[a b c]; [d e f];g{0.1h}])
 p = plot(figures..., p0, layout=lay, size=(1200, 650), 
   # bottommargin=2mm, leftmargin=5mm, padding=-1mm, margin=-2mm
-  left_margin=[7mm -2mm -2mm], bottommargin=[2mm 2mm 4mm]
+  left_margin=[7mm -2mm -2mm], bottommargin=[2mm 2mm 10mm]
 )
 
 savefig(p, "plot/complexity_plot.pdf")
@@ -236,7 +152,9 @@ function complexity_plot_r1(algid, ri, ki_list, n::Array, data::Dict, left::Bool
   numer, denom = numerator(tauk), denominator(tauk)
   p = plot(n, data[algid][key][(ri, ki_list[1])], shape=shape[1], legendfont=10,
     yscale=:log10, xscale=:log10, markersize=6, markerstrokewidth=0, 
-    linewidth=3, legendfontsize=11, label="\$\\tau_k=\$ $(numer)/$(denom): $(slope)"
+    linewidth=3, legendfontsize=12, label="\$\\tau_k=\$ $(numer)/$(denom): $(slope)",
+    legendtitlefontsize=15, 
+    left_margin=2mm, bottom_margin=2mm
   ) 
   while i <= length(ki)
     slope = estimate_slope(data, n, ki_list[i], ri, algid)
@@ -249,12 +167,8 @@ function complexity_plot_r1(algid, ri, ki_list, n::Array, data::Dict, left::Bool
   end
 
 
-  if left
-    ylabel!("time (sec)", fontfamily="Times New Roman")
-  end
-  if bottom
-    xlabel!("n", fontfamily="Times New Roman")
-  end
+  ylabel!("Time (sec)", fontfamily="Times New Roman", yguidefontsize=15)
+  xlabel!("n", fontfamily="Times New Roman", xguidefontsize=15)
 
   title!("Experiment: \$ \\tau_r = $(numerator(taur)) / $(denominator(taur)) \$", fontfamily="Times New Roman")
 
@@ -274,4 +188,4 @@ end
 
 p = complexity_plot_r1(1, ri[1], ki, n, data)
 
-savefig(p, "plot/complexity(r=1)_plot.pdf")
+savefig(p, "plot/complexity_r=1_plot.pdf")

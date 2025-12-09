@@ -57,7 +57,7 @@ function time_test(n::Integer, nrep::Integer,
   alg_names = ["without_init", "with_init"]
   out = initialize_output(n, nr, nk)
 
-  hist = false # don't record history
+  hist = false
 
   # test output
   println(datapath * "/$(distribution)/$n/")
@@ -96,8 +96,6 @@ function time_test(n::Integer, nrep::Integer,
       end
       writedlm(datapath*"/$(distribution)/$(n)/t_psort_$repi.csv", out["ALL"][:t_psort])
       
-      # GC.enable(false)
-
       for ri in eachindex(rlevel)
         # println(ri)
         r = Float64(rlevel[ri]) * tks
@@ -132,7 +130,6 @@ function time_test(n::Integer, nrep::Integer,
         writeout_piv(D, n, repi, datapath, distribution)
 
       end
-      # GC.enable(true)
 
     end
   end
@@ -164,12 +161,11 @@ global const PROJPATH = pwd();
 include(PROJPATH * "/experiment/projection.jl")
 include(PROJPATH * "/experiment/data_process.jl")
 global const DATAPATH = PROJPATH * "/complexity"
-# global const DATAPATH = PROJPATH * "/complexity_tau_r_near1"
 # global const DATAPATH = PROJPATH * "/complexity_tau_r=1"
 
 
 nlevel = 10 .^(collect(3:7));
-nlevel = [10^3; 10^7];
+# nlevel = [10^3; 10^7];
 rlevel = [[0;1;2;3;4;5;6;7;8;9] .//10; [99//100, 999//1000]; [100; 101; 110; 120; 150; 200] .// 100];
 klevel = [[1; 10; 100; 500] .// 10^4; [1;2;3;4;5;6;7;8;9] .// 10];
 ri = [2; 6; 10; 13; 15; 17];

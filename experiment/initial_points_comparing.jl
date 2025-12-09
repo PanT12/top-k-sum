@@ -1,45 +1,45 @@
 function initialize_output(n, nr, nk)
-  alg_names = ["without_init", "with_init"]
+  alg_names = ["ConInit", "AdaInit"]
   out = Dict()
-  out["without_init"] = Dict()
-  out["with_init"] = Dict()
+  out["ConInit"] = Dict()
+  out["AdaInit"] = Dict()
   out["ALL"] = Dict()
   
   # t_init
-  out["without_init"][:t_init] = fill(+Inf, nr, nk)
-  out["with_init"][:t_init] = fill(+Inf, nr, nk)
+  out["ConInit"][:t_init] = fill(+Inf, nr, nk)
+  out["AdaInit"][:t_init] = fill(+Inf, nr, nk)
   
   # t_run
-  out["without_init"][:t_run] = fill(+Inf, nr, nk)
-  out["with_init"][:t_run] = fill(+Inf, nr, nk)
+  out["ConInit"][:t_run] = fill(+Inf, nr, nk)
+  out["AdaInit"][:t_run] = fill(+Inf, nr, nk)
   
   # t_primal: primal recovery
-  out["without_init"][:t_primal] = fill(+Inf, nr, nk)
-  out["with_init"][:t_primal] = fill(+Inf, nr, nk)
+  out["ConInit"][:t_primal] = fill(+Inf, nr, nk)
+  out["AdaInit"][:t_primal] = fill(+Inf, nr, nk)
   
   # obj
-  out["without_init"][:obj] = fill(+Inf, nr, nk) # obj value 1
-  out["with_init"][:obj] = fill(+Inf, nr, nk) # obj value 1
+  out["ConInit"][:obj] = fill(+Inf, nr, nk) # obj value 1
+  out["AdaInit"][:obj] = fill(+Inf, nr, nk) # obj value 2
   
   # nit
-  out["without_init"][:nit_init] = zeros(Int64, nr, nk) # number of init iterations 1
-  out["with_init"][:nit_init] = zeros(Int64, nr, nk) # number of init iterations 2
-  out["without_init"][:nit_p] = zeros(Int64, nr, nk) # number of iterations 1
-  out["with_init"][:nit_p] = zeros(Int64, nr, nk) # number of iterations 2
-  out["without_init"][:nit_e] = zeros(Int64, nr, nk) # number of iterations 1
-  out["with_init"][:nit_e] = zeros(Int64, nr, nk) # number of iterations 2
-  out["without_init"][:nit_total] = zeros(Int64, nr, nk) # total number of iterations 1
-  out["with_init"][:nit_total] = zeros(Int64, nr, nk) # total number of iterations 2
+  out["ConInit"][:nit_init] = zeros(Int64, nr, nk) # number of init iterations 1
+  out["AdaInit"][:nit_init] = zeros(Int64, nr, nk) # number of init iterations 2
+  out["ConInit"][:nit_p] = zeros(Int64, nr, nk) # number of iterations 1
+  out["AdaInit"][:nit_p] = zeros(Int64, nr, nk) # number of iterations 2
+  out["ConInit"][:nit_e] = zeros(Int64, nr, nk) # number of iterations 1
+  out["AdaInit"][:nit_e] = zeros(Int64, nr, nk) # number of iterations 2
+  out["ConInit"][:nit_total] = zeros(Int64, nr, nk) # total number of iterations 1
+  out["AdaInit"][:nit_total] = zeros(Int64, nr, nk) # total number of iterations 2
 
 
   
   # case
-  out["without_init"][:case] = zeros(Int64, nr, nk) # case id: 1 = strict, 2 = strict but lcp ez; 0 = inactive; -1 = k==1; -2 = k==n
-  out["with_init"][:case] = zeros(Int64, nr, nk) # case id: 0: inactive, 1: active
+  out["ConInit"][:case] = zeros(Int64, nr, nk) # case id: 1 = strict, 2 = strict but lcp ez; 0 = inactive; -1 = k==1; -2 = k==n
+  out["AdaInit"][:case] = zeros(Int64, nr, nk) # case id: 0: inactive, 1: active
   
   # bestfeas
-  out["without_init"][:bestfeas] = zeros(Bool, nr, nk) # does 1 satisfy Mk(xbar) <= r and have lowest objval
-  out["with_init"][:bestfeas] = zeros(Bool, nr, nk) # does 1 satisfy Mk(xbar) <= r and have lowest objval
+  out["ConInit"][:bestfeas] = zeros(Bool, nr, nk) # does 1 satisfy Mk(xbar) <= r and have lowest objval
+  out["AdaInit"][:bestfeas] = zeros(Bool, nr, nk) # does 1 satisfy Mk(xbar) <= r and have lowest objval
 
   # other
   out["ALL"][:obj_1234] = Array{Vector{Int64}}(undef, nr, nk) # best objective value
@@ -50,8 +50,8 @@ function initialize_output(n, nr, nk)
 
   
   # solution
-  out["without_init"][:xstar] = zeros(Float64, n)
-  out["with_init"][:xstar] = zeros(Float64, n)
+  out["ConInit"][:xstar] = zeros(Float64, n)
+  out["AdaInit"][:xstar] = zeros(Float64, n)
   return out
   end
 
@@ -66,7 +66,7 @@ function time_test(n::Integer, nrep::Integer,
   # setup
   nr = length(rlevel)
   nk = length(klevel)
-  alg_names = ["without_init", "with_init"]
+  alg_names = ["ConInit", "AdaInit"]
   out = initialize_output(n, nr, nk)
 
   x0prepop = false # prepopulate xbarsort .= x0sort
@@ -114,11 +114,7 @@ function time_test(n::Integer, nrep::Integer,
         x0psort = partialsort(x0, 1:k);
       end
       writedlm(datapath*"/$(distribution)/$(n)/t_psort_$repi.csv", out["ALL"][:t_psort])
-      
-      # if !isnothing(expers)
-      #   GC.enable(false)
-      # end
-
+    
       for ri in eachindex(rlevel)
         # println(ri)
         r = Float64(rlevel[ri]) * tks
@@ -136,33 +132,17 @@ function time_test(n::Integer, nrep::Integer,
         @views sp, k0k1, nit, t, case, lam = project_topksum_esgs_experiment!(
           xstar_esgs, x0sort, x0, r, k, sum(x0sort[1:k]) > r, x0prepop, verb, hist
         )
-        # time_sort = out["ALL"][:active][ri,ki] ? out["ALL"][:t_sort] + out["ALL"][:t_psort][ki] : out["ALL"][:t_psort][ki];
-        # D = out["ESGS"]
-        # D[:xstar] .= xstar
-        # D[:name] = "ESGS"
-        # D[:k0][ri,ki] = k0k1[1]
-        # D[:k1][ri,ki] = k0k1[2]
-        # D[:t_init][ri,ki] = t[1] + time_sort;
-        # D[:t_run][ri,ki] = t[2]
-        # D[:t_primal][ri,ki] = t[3] #+ time_convert
-        # D[:tks][ri,ki] = max(sum(sort(xstar, rev=true)[1:k]) - r, 0.0) #! is unsorted
-        # # D[:ord][ri,ki] = maximum(max.(diff(D[:xstar]), 0.0))
-        # # D[:infeas][ri,ki] = max(D[:tks][ri,ki], D[:ord][ri,ki])
-        # D[:obj][ri,ki] = 0.5 * norm(xstar .- x0, 2)^2
-        # D[:nit][ri,ki] = nit
-        # D[:case][ri,ki] = case
-        # writeout_piv(D, n, repi, datapath, distribution)
 
-        # EIPS # without_init
+        # EIPS # AdaInit
         xstar = similar(x0);
         debug = false;
         @views flag, Ite, t = project_topksum_EIPS_experiment!(
-          xstar, x0, r, k, true, debug, hist
+          xstar, x0, r, k, false, debug, hist
         )
-        D = out["without_init"]
+        D = out["AdaInit"]
         D[:case][ri,ki] = flag
         D[:xstar] .= xstar
-        D[:name] = "without_init"
+        D[:name] = "AdaInit"
         D[:t_init][ri,ki] = t[1]
         D[:t_run][ri,ki] = t[2]
         D[:t_primal][ri,ki] = t[3]
@@ -175,17 +155,18 @@ function time_test(n::Integer, nrep::Integer,
         # D[:case][ri,ki] = case
         writeout_piv(D, n, repi, datapath, distribution)
 
-
-        # EIPS # with_init
-        xstar = similar(x0);
-        debug = false;
-        @views flag, Ite, t = project_topksum_EIPS_experiment!(
-          xstar, x0, r, k, false, debug, hist
-        )
-        D = out["with_init"]
+        # EIPS # ConInit
+        if flag == 2 || flag == 3
+          xstar = similar(x0);
+          debug = false;
+          @views flag, Ite, t = project_topksum_EIPS_experiment!(
+            xstar, x0, r, k, true, debug, hist
+          )
+        end
+        D = out["ConInit"]
         D[:case][ri,ki] = flag
         D[:xstar] .= xstar
-        D[:name] = "with_init"
+        D[:name] = "ConInit"
         D[:t_init][ri,ki] = t[1]
         D[:t_run][ri,ki] = t[2]
         D[:t_primal][ri,ki] = t[3]
@@ -201,22 +182,22 @@ function time_test(n::Integer, nrep::Integer,
 
         # check
         tol = 1e-8;
-        diff_12 = norm(out["without_init"][:xstar] .- xstar_esgs, Inf)
-        diff_13 = norm(out["with_init"][:xstar] .- xstar_esgs, Inf)
+        diff_12 = norm(out["ConInit"][:xstar] .- xstar_esgs, Inf)
+        diff_13 = norm(out["AdaInit"][:xstar] .- xstar_esgs, Inf)
         diffs = [diff_12, diff_13];
         if maximum(diffs) > tol
           if argmax(diffs) == 1
           # if diff_12 > tol
             println("(n, repi, rlevel, klevel) = $((n, repi, ri, ki))")
-            @warn("numerical error in ESGS v without_init)? tks infeas = $(
-              round(max(0, sum(sort(out["without_init"][:xstar], rev=true)[1:k])-r),digits=5)
+            @warn("numerical error in ESGS v ConInit)? tks infeas = $(
+              round(max(0, sum(sort(out["ConInit"][:xstar], rev=true)[1:k])-r),digits=5)
             ), diff_12 = $(
               round(diff_12,digits=8)
             )")
           else
             println("(n, repi, rlevel, klevel) = $((n, repi, ri, ki))")
-            @warn("numerical error in ESGS v with_init)? tks infeas = $(
-              round(max(0, sum(sort(out["with_init"][:xstar], rev=true)[1:k])-r),digits=5)
+            @warn("numerical error in ESGS v AdaInit)? tks infeas = $(
+              round(max(0, sum(sort(out["AdaInit"][:xstar], rev=true)[1:k])-r),digits=5)
             ), diff_13 = $(
               round(diff_13,digits=8)
             )")            
@@ -224,18 +205,15 @@ function time_test(n::Integer, nrep::Integer,
         end
 
       end
-      # if !isnothing(expers)
-      #   GC.enable(true)
-      # end
 
     end
   end
 end
 
 function writeout_piv(D::Dict, n::Integer, repi::Integer, datapath::String, distribution::String)
-  if isequal(D[:name], "without_init")
+  if isequal(D[:name], "ConInit")
     id = 1
-  elseif isequal(D[:name], "with_init")
+  elseif isequal(D[:name], "AdaInit")
     id = 2
   else
     throw()
@@ -263,17 +241,9 @@ global const PROJPATH = pwd();
 include(PROJPATH * "/experiment/projection.jl")
 include(PROJPATH * "/experiment/data_process.jl")
 global const DATAPATH = PROJPATH * "/initial_point_selecting"
-# global const DATAPATH = PROJPATH * "/debug"
 
 
-
-
-# debug size
-# nlevel = [10^1, 10^2, 10^3, 10^4]
-
-nlevel = 10 .^(collect(1:3));
-# nlevel = [1;4;10;40;100;400].*10^4
-# nlevel = [10^5]
+nlevel = 10 .^(collect(1:6));
 rlevel = [[0;1;2;3;4;5;6;7;8;9] .//10; [99//100, 999//1000]];
 klevel = [[1; 10; 100; 500] .// 10^4; [1;2;3;4;5;6;7;8;9] .// 10];
 
@@ -290,8 +260,8 @@ for ni in eachindex(nlevel)
   println("===================")
   println("   n=$n  ")
   println("===================")
-  # time_test(n, repeat, rlevel, klevel, DATAPATH, distribution, expers)
-  time_test(n, repeat, rlevel, klevel, DATAPATH, distribution)
+  time_test(n, repeat, rlevel, klevel, DATAPATH, distribution, expers)
+  # time_test(n, repeat, rlevel, klevel, DATAPATH, distribution)
 end
 out = load_results(DATAPATH, 1, 100, 1:2)
 
@@ -300,8 +270,6 @@ process_load_result(out, DATAPATH, 1:2)
 
 
 ####################################################################################
-# most cases
-
 nlevel = [10^1; 10^7];
 rlevel = [[0;1;2;3;4;5;6;7;8;9] .//10; [99//100, 999//1000]];
 klevel = [[1; 10; 100; 500] .// 10^4; [1;2;3;4;5;6;7;8;9] .// 10];

@@ -198,9 +198,7 @@ function process_data_plot(datapath::String, algid::Vector{Int}, r_k_pair::Vecto
   files = readdir(root_dir);
   files = files[.!occursin.(".DS_Store", files)];
   n = sort([Parsers.parse(Int, sample_size) for sample_size in files])
-  # if 10 in n
-  #   n = n[2:end]
-  # end
+
   files = [string(size) for size in n]
   out = Dict()
   sort_time = [];
@@ -210,9 +208,6 @@ function process_data_plot(datapath::String, algid::Vector{Int}, r_k_pair::Vecto
   file_name2 = ["nit_total_mean", "case_mean"]
 
   for folder in files
-    # if folder == "10"
-    #   continue
-    # end
     out[folder] = Dict()
     process_path = joinpath(root_dir, folder, "process");
     sort_time_path = joinpath(process_path, "sort_time_mean.csv")
@@ -248,9 +243,6 @@ function process_data_plot(datapath::String, algid::Vector{Int}, r_k_pair::Vecto
         rid, kid = pair
         val = []
         for folder in files
-          # if folder == "10"
-          #   continue
-          # end
           push!(val, out[folder][id][d][rid, kid])
           data[id][d][pair] = val
         end

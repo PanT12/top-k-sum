@@ -190,13 +190,11 @@ function time_test(n::Integer, nrep::Integer,
         if !isnothing(expers)
           if (rlevel[ri], klevel[ki]) ∉ expers
           # println("  --> skipping: $((rlevel[ri], klevel[ki]))")
-          continue
+            continue
           end
         end
         # println("$((rlevel[ri], klevel[ki]))")
         out["ALL"][:active][ri,ki] = sum(x0sort[1:k]) > r
-
-        # GC.enable(false)
 
         # EIPS
         xstar = similar(x0);
@@ -221,11 +219,6 @@ function time_test(n::Integer, nrep::Integer,
         if alg1
           writeout_piv(D, n, repi, datapath, distribution)
         end
-        
-        # GC.gc()
-        # GC.enable(true)
-
-        # GC.enable(false)
 
         # ESGS
         xstar = similar(x0sort);
@@ -251,11 +244,6 @@ function time_test(n::Integer, nrep::Integer,
           writeout_piv(D, n, repi, datapath, distribution)
         end
 
-        # GC.gc()
-        # GC.enable(true)
-
-        # GC.enable(false)
-
         # PLCP need to record permutation
         xbarsort = similar(x0sort)
         @views sp, ab, nit, t, case = project_topksum_plcp_experiment!(
@@ -268,11 +256,11 @@ function time_test(n::Integer, nrep::Integer,
         a = ab[1]
         b = ab[2]
         if a >=0 && b > 0
-        a = max(a-1, 0)
-        b = min(b+1, n)
+          a = max(a-1, 0)
+          b = min(b+1, n)
         elseif case == 2
-        a = k-1
-        b = k
+          a = k-1
+          b = k
         end
         D[:name] = "PLCP"
         # D[:k0][ri,ki] = a
@@ -289,11 +277,6 @@ function time_test(n::Integer, nrep::Integer,
         if alg3
           writeout_piv(D, n, repi, datapath, distribution)
         end
-
-        # GC.gc()
-        # GC.enable(true)
-
-        # GC.enable(false)
 
         # GRID # no need to record permutation
         if n < maxn_grid # && [ri, ki] ∉ specific_case
@@ -327,11 +310,6 @@ function time_test(n::Integer, nrep::Integer,
           D[:xstar] .= out["EIPS"][:xstar]
           D[:name] = "GRID"
         end
-
-        # GC.gc()
-        # GC.enable(true)
-
-        # GC.enable(false)
 
         # GURO need to record permutation
         if n < maxn_gurobi
@@ -372,9 +350,6 @@ function time_test(n::Integer, nrep::Integer,
           D[:name] = "GURO"
         end
 
-        # GC.gc()
-        # GC.enable(true)
-
         # check
         diff_12 = norm(out["EIPS"][:xstar] .- out["ESGS"][:xstar], Inf)
         diff_13 = norm(out["EIPS"][:xstar] .- out["PLCP"][:xstar], Inf)
@@ -414,9 +389,7 @@ function time_test(n::Integer, nrep::Integer,
 
 
       end
-      # GC.enable(true)
     end
-    # GC.enable(true)
   end
 end
 
@@ -460,7 +433,7 @@ include(PROJPATH * "/experiment/projection.jl")
 include(PROJPATH * "/experiment/data_process.jl")
 global const DATAPATH = PROJPATH * "/time_compare"
 
-nlevel = 10 .^(collect(1:5));
+nlevel = 10 .^(collect(1:6));
 # nlevel = [10^3]
 rlevel = [[0;1;2;3;4;5;6;7;8;9] .//10; [99//100, 999//1000]; [100; 101; 110; 120; 150; 200] .// 100];
 klevel = [[1; 10; 100; 500] .// 10^4; [1;2;3;4;5;6;7;8;9] .// 10];
@@ -538,75 +511,11 @@ for ni in eachindex(nlevel)
   time_test(n, repeat, rlevel, klevel, DATAPATH, distribution, 100_000_000, 100_000_000, expers, 0, false, false, false, true, true)
 end
 
-
-
-# #################################################################################################################################################
-
-# # 处理当n=10^7的case 
-# # cannot use garbage collector
-# nlevel = [10^1; 10^7];
-# rlevel = [[0;1;2;3;4;5;6;7;8;9] .//10; [99//100, 999//1000]; [100; 101; 110; 120; 150; 200] .// 100];
-# klevel = [[1; 10; 100; 500] .// 10^4; [1;2;3;4;5;6;7;8;9] .// 10];
-# # klevel_sub = [1//10^4; 2//10; 4//10; 8//10] !!!!!!!!!!!!!
-# # rlevel_sub = [1//10; 5//10; 9//10; 1//1; 110//100; 150//100] !!!!!!!!!!!!!!!
-# # ri = [13;14;15]
-# ri = [2; 10; 11; 13; 14; 15];
-# ki = [1; 6; 10];
-# klevel_sub = klevel[ki];
-# rlevel_sub = rlevel[ri];
-# expers = [(x, y) for x in rlevel_sub for y in klevel_sub];
-# repeat = 2;
-# rep_offset = 0;
-# distribution = "Uniform";
-# for ni in eachindex(nlevel)
-#   local n = nlevel[ni]
-#   Random.seed!(n)
-#   println("===================")
-#   println("   n=$n  ")
-#   println("===================")
-#   time_test(n, repeat, rlevel, klevel, DATAPATH, distribution, 1, 1000_000_000, expers, 0, false, false, false, true, false)
-# end
-
-
-
-# #################################################################################################################################################
-
-# # 处理一些不稳定的case
-# # nlevel = 10 .^(collect(1:4));
-# nlevel = [10^1; 10^5];
-# rlevel = [[0;1;2;3;4;5;6;7;8;9] .//10; [99//100, 999//1000]; [100; 101; 110; 120; 150; 200] .// 100];
-# klevel = [[1; 10; 100; 500] .// 10^4; [1;2;3;4;5;6;7;8;9] .// 10];
-# # klevel_sub = [1//10^4; 2//10; 4//10; 8//10] !!!!!!!!!!!!!
-# # rlevel_sub = [1//10; 5//10; 9//10; 1//1; 110//100; 150//100] !!!!!!!!!!!!!!!
-# # ri = [13;14;15]
-# ri = [2; 10; 11; 13; 14; 15];
-# ki = [1; 6; 10];
-# klevel_sub = klevel[ki];
-# rlevel_sub = rlevel[ri];
-# expers = [(x, y) for x in rlevel_sub for y in klevel_sub];
-# repeat = 100;
-# rep_offset = 0;
-# distribution = "Uniform";
-# for ni in eachindex(nlevel)
-#   local n = nlevel[ni]
-#   Random.seed!(n)
-#   println("===================")
-#   println("   n=$n  ")
-#   println("===================")
-#   time_test(n, repeat, rlevel, klevel, DATAPATH, distribution, 10^6, 1, expers, 0, false, true, true, false, true)
-# end
-
-# out = load_results(DATAPATH, 1, 100, 10^8, 10^8)
-
-# process_load_result(out, DATAPATH, 10^8, 10^8)
-
-
 #################################################################################################################################################
 
 
 # global const DATAPATH = PROJPATH * "/time_compare_most"
 nlevel = [10^1; 10^7];
-# nlevel = [10^3]
 rlevel = [[0;1;2;3;4;5;6;7;8;9] .//10; [99//100, 999//1000]; [100; 101; 110; 120; 150; 200] .// 100];
 klevel = [[1; 10; 100; 500] .// 10^4; [1;2;3;4;5;6;7;8;9] .// 10];
 repeat = 100;
@@ -624,6 +533,6 @@ end
 root_dir = DATAPATH * "/Uniform";
 rm(root_dir * "/10", recursive=true)
 
-out = load_results(DATAPATH, 1, 100, 1:5)
+out = load_results(DATAPATH, 1, 100, 1:5, 10^8, 10^8)
 
-process_load_result(out, DATAPATH, 1:5)
+process_load_result(out, DATAPATH, 1:5, 10^8, 10^8)
