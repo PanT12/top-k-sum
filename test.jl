@@ -1,8 +1,4 @@
-using LinearAlgebra, Random, DelimitedFiles
-using Gurobi, JuMP, SparseMatricesCSR, SparseArrays, Statistics
-using SparseMatricesCSR, SparseArrays, Statistics
 global const PROJPATH = pwd();
-include(PROJPATH * "/experiment/projection.jl")
 include(pwd() * "/src/TopKSum.jl")
 using .TopKSum
 using Test, LinearAlgebra
