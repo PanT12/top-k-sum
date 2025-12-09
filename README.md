@@ -1,12 +1,10 @@
 # Fast projection onto the top-k-sum constraint
 
 ## Introduction
-We consider the Euclidean projection onto the top-$k$-sum: 
+We consider the Euclidean projection onto the top-k-sum: 
 $$
-\begin{aligned}
-    & \min_{\boldsymbol{x} \in \mathbb{R}^n}\ \frac{1}{2}\| \boldsymbol{x} - \boldsymbol{a} \|^2 \\
-    & \text{subject to}\ x \in \mathcal{T}_{(k)}^r:=\left\{\boldsymbol{x} \in \mathbb{R}^n: \mathrm{T}_{(k)}(\boldsymbol{x}):=\sum_{i=1}^k \vec{x}_i \leq r\right\}，
-\end{aligned}
+    \min_{\boldsymbol{x} \in \mathbb{R}^n}\ \frac{1}{2}\| \boldsymbol{x} - \boldsymbol{a} \|^2 \quad
+    \text{subject to}\ x \in \mathcal{T}_{(k)}^r:=\left\{\boldsymbol{x} \in \mathbb{R}^n: \mathrm{T}_{(k)}(\boldsymbol{x}):=\sum_{i=1}^k \vec{x}_i \leq r\right\}，
 $$
 where $r \in \mathbb{R}$, $k \in \{1,2,\dots,n\}$ and sequence $\boldsymbol{a} \in \mathbb{R}^n$ are given, $\vec{x}_1 \geq \vec{x}_2 \geq \dots \geq \vec{x}_n$ are the components of $\boldsymbol{x}$ in nonincreasing order.
 > 
